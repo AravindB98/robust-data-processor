@@ -117,6 +117,5 @@ robust-data-processor/
 
 **Aravind Balaji**  
 Masters in Information Systems  
-Northeastern Universitygit add README.md
-git commit -m "Add README with architecture diagram"
-git push
+Northeastern University
+www.linkedin.com/in/aravind-balaji-17a7b2115
