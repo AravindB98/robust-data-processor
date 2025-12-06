@@ -17,7 +17,13 @@ def simulate_heavy_processing(text):
     print(f"Processing {char_count} characters, sleeping for {sleep_time}s")
     time.sleep(sleep_time)
     
-    modified_text = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[REDACTED]', text)
+    # Redact phone numbers (various formats)
+    # Matches: 555-1234, 555-123-4567, 5551234567, (555) 123-4567
+    modified_text = re.sub(r'\b\d{3}[-.]?\d{4}\b', '[REDACTED]', text)
+    modified_text = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[REDACTED]', modified_text)
+    modified_text = re.sub(r'\(\d{3}\)\s*\d{3}[-.]?\d{4}', '[REDACTED]', modified_text)
+    
+    # Redact emails
     modified_text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL_REDACTED]', modified_text)
     return modified_text
 
