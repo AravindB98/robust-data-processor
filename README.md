@@ -57,6 +57,116 @@ A scalable, fault-tolerant multi-tenant data ingestion pipeline built on Google 
 
 ---
 
+---
+
+
+### How TXT and JSON Paths Merge
+```
+                         ┌─────────────────────────────────────────┐
+                         │            INPUT SOURCES                │
+                         └─────────────────────────────────────────┘
+                                          
+    ┌──────────────────────────┐              ┌──────────────────────────┐
+    │       JSON PAYLOAD       │              │       TXT PAYLOAD        │
+    │                          │              │                          │
+    │  Content-Type:           │              │  Content-Type:           │
+    │  application/json        │              │  text/plain              │
+    │                          │              │                          │
+    │  Body:                   │              │  Header:                 │
+    │  {                       │              │  X-Tenant-ID: beta_inc   │
+    │   "tenant_id": "acme",   │              │                          │
+    │   "log_id": "123",       │              │  Body:                   │
+    │   "text": "User 555..."  │              │  "Raw log text..."       │
+    │  }                       │              │                          │
+    └────────────┬─────────────┘              └─────────────┬────────────┘
+                 │                                          │
+                 │         POST /ingest                     │
+                 │                                          │
+                 └─────────────────┬────────────────────────┘
+                                   │
+                                   ▼
+                 ┌─────────────────────────────────────────┐
+                 │         CLOUD RUN (API SERVICE)         │
+                 │                                         │
+                 │   ┌─────────────────────────────────┐   │
+                 │   │     NORMALIZE TO INTERNAL       │   │
+                 │   │          FORMAT                 │   │
+                 │   │                                 │   │
+                 │   │  Both JSON and TXT become:     │   │
+                 │   │  {                             │   │
+                 │   │    "tenant_id": "...",         │   │
+                 │   │    "log_id": "...",            │   │
+                 │   │    "text": "...",              │   │
+                 │   │    "source_type": "json|text", │   │
+                 │   │    "received_at": "..."        │   │
+                 │   │  }                             │   │
+                 │   └─────────────────────────────────┘   │
+                 │                                         │
+                 └──────────────────┬──────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    │                               │
+                    ▼                               ▼
+      ┌─────────────────────────┐    ┌─────────────────────────┐
+      │     202 Accepted        │    │    GOOGLE PUB/SUB       │
+      │   (instant response)    │    │    ingestion-topic      │
+      │                         │    │                         │
+      │  Returned to client     │    │  • Buffers messages     │
+      │  immediately            │    │  • Guarantees delivery  │
+      │                         │    │  • Enables retry        │
+      └─────────────────────────┘    └────────────┬────────────┘
+                                                  │
+                                        Push Subscription
+                                                  │
+                                                  ▼
+                                   ┌─────────────────────────────┐
+                                   │  CLOUD RUN (WORKER SERVICE) │
+                                   │                             │
+                                   │  1. Receive message         │
+                                   │  2. Sleep 0.05s per char    │
+                                   │  3. Redact phone numbers    │
+                                   │  4. Redact emails           │
+                                   │  5. Store to Firestore      │
+                                   │  6. Acknowledge message     │
+                                   │                             │
+                                   └──────────────┬──────────────┘
+                                                  │
+                                                  ▼
+                                   ┌─────────────────────────────┐
+                                   │         FIRESTORE           │
+                                   │    (Multi-Tenant Storage)   │
+                                   │                             │
+                                   │  tenants/                   │
+                                   │  ├── acme_corp/             │
+                                   │  │   └── processed_logs/    │
+                                   │  │       ├── log-001        │
+                                   │  │       └── log-002        │
+                                   │  ├── beta_inc/              │
+                                   │  │   └── processed_logs/    │
+                                   │  │       └── log-001        │
+                                   │  └── gamma_ltd/             │
+                                   │      └── processed_logs/    │
+                                   │          └── log-001        │
+                                   │                             │
+                                   │   STRICT TENANT ISOLATION   │
+                                   └─────────────────────────────┘
+```
+
+### Data Flow Summary
+
+| Step | JSON Payload | TXT Payload |
+|------|--------------|-------------|
+| 1. Input | `Content-Type: application/json` | `Content-Type: text/plain` |
+| 2. Tenant ID | From JSON body: `tenant_id` | From header: `X-Tenant-ID` |
+| 3. Normalize | ✅ Same internal format | ✅ Same internal format |
+| 4. Publish | ✅ Same Pub/Sub topic | ✅ Same Pub/Sub topic |
+| 5. Process | ✅ Same worker | ✅ Same worker |
+| 6. Store | ✅ Same Firestore structure | ✅ Same Firestore structure |
+
+**Key Point:** Both JSON and TXT payloads merge into a single normalized format at the API layer, then follow the same path through Pub/Sub → Worker → Firestore.
+
+---
+
 ## Features
 
 | Feature | Description |
