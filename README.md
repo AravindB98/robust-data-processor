@@ -212,24 +212,56 @@ Requests by Tenant:
 
 ---
 
-## Crash Recovery
+---
 
-The system handles failures gracefully:
+## Crash Recovery ("Crash Simulation" Handling)
 
-| Failure Scenario | Recovery Mechanism |
-|------------------|-------------------|
-| API crashes | Cloud Run auto-restarts; Pub/Sub buffers messages |
-| Worker crashes mid-process | Pub/Sub redelivers unacknowledged message |
-| Database unavailable | Worker returns 500; Pub/Sub retries with backoff |
-| High traffic spike | Cloud Run auto-scales; Pub/Sub absorbs burst |
+The system is designed to handle worker crashes gracefully:
 
 ### How It Works
-
+```
 1. API publishes message to Pub/Sub
-2. Pub/Sub delivers to Worker via push subscription
-3. Worker processes and returns 200 OK (acknowledges message)
-4. If Worker crashes before step 3, Pub/Sub redelivers automatically
-5. Worker is idempotent - reprocessing overwrites existing document
+2. Pub/Sub delivers message to Worker
+3. Worker processes message
+4. Worker returns 200 OK → Pub/Sub marks message as "acknowledged"
+5. If Worker CRASHES before step 4 → message is NOT acknowledged
+6. Pub/Sub automatically RETRIES delivery with exponential backoff
+```
+
+### Key Design Decisions
+
+**1. Pub/Sub Acknowledgment Deadline (600 seconds):**
+- Worker has 10 minutes to process before Pub/Sub retries
+- Allows for long-running processing (0.05s × characters)
+
+**2. Idempotent Worker:**
+- Uses `log_id` as Firestore document ID
+- Reprocessing same message overwrites existing document
+- No duplicate data even if message is delivered multiple times
+
+**3. At-Least-Once Delivery:**
+- Pub/Sub guarantees message is delivered at least once
+- Combined with idempotent worker = exactly-once processing semantics
+
+### Failure Scenarios
+
+| Scenario | What Happens |
+|----------|--------------|
+| Worker crashes mid-process | Pub/Sub redelivers after ack deadline |
+| Worker returns 500 error | Pub/Sub retries with exponential backoff |
+| Firestore unavailable | Worker fails, Pub/Sub retries |
+| API crashes | Cloud Run auto-restarts, Pub/Sub buffers messages |
+| High traffic spike | Cloud Run auto-scales, Pub/Sub absorbs burst |
+
+### Why This Architecture?
+
+Using Pub/Sub as a message broker between API and Worker means:
+- **No data loss**: Messages persist in Pub/Sub until acknowledged
+- **Decoupled services**: API doesn't need to know if Worker is running
+- **Automatic retries**: No custom retry logic needed
+- **Scalability**: Can add more workers without changing API
+
+---
 
 ---
 
