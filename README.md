@@ -404,7 +404,7 @@ A mail-sorting office for data that never loses a letter: apps send it streams o
 
 - Ingestion backbone for SaaS products receiving customer data streams
 - Reference architecture for fault-tolerant pipelines on GCP
-- Interview-grade example of production backend design
+- Reference example of production backend design
 
 ## 🤝 Contributing
 
