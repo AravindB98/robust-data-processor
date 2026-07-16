@@ -393,3 +393,32 @@ Masters in Information Systems
 Northeastern University  
 aravind.b98@gmail.com
 www.linkedin.com/in/aravind-balaji-17a7b2115
+
+---
+
+## 🧒 Explain Like I'm 5
+
+A mail-sorting office for data that never loses a letter: apps send it streams of data, it accepts everything politely even during rush hour, retries anything that fails, and quarantines broken items instead of crashing — all running on Google Cloud.
+
+## 🌍 Real-Life Applications
+
+- Ingestion backbone for SaaS products receiving customer data streams
+- Reference architecture for fault-tolerant pipelines on GCP
+- Interview-grade example of production backend design
+
+## 🤝 Contributing
+
+Contributions of every size are welcome!
+
+1. ⭐ **Star this repo** — it helps more people discover the project.
+2. 🍴 **Fork it** and create a feature branch (`git checkout -b feature/your-idea`).
+3. Commit your changes with clear messages.
+4. Open a Pull Request describing what you improved and why.
+
+Found a bug or have an idea? [Open an issue](https://github.com/AravindB98/robust-data-processor/issues). And if this project helped you, please **star ⭐ and fork 🍴** — it genuinely helps the project grow.
+
+## 🔭 Future Scope
+
+- Schema registry and versioned validation
+- Autoscaling cost-optimization policies
+- Terraform one-command deploy
